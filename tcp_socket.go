@@ -3,18 +3,19 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"net"
-	"time"
+	//"time"
 )
 
-func handleConnection(conn net.Conn) {
-	fmt.Println("Handling conn")
+func handleConnection(conn net.Conn, threadID int) {
 
-	timeout := 10 * time.Second
+	//	timeout := 10 * time.Second
 	buffReader := bufio.NewReader(conn)
 
 	for {
-		conn.SetReadDeadline(time.Now().Add(timeout))
+		fmt.Printf("%d READING\n", threadID)
+		//conn.SetReadDeadline(time.Now().Add(timeout))
 
 		// Read tokens delimited by newline
 		bytes, err := buffReader.ReadBytes('\n')
@@ -26,7 +27,7 @@ func handleConnection(conn net.Conn) {
 		fmt.Printf("%s", bytes)
 	}
 
-	fmt.Println("Closing..")
+	fmt.Printf("%d CLOSING\n", threadID)
 	conn.Close()
 }
 
@@ -44,6 +45,8 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		handleConnection(conn)
+		threadID := rand.Int()
+		fmt.Printf("Creating thread ID: %d\n", threadID)
+		go handleConnection(conn, threadID)
 	}
 }
