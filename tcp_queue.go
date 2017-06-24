@@ -4,14 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/clandry94/go_ds/queue"
-	workqueue "github.com/clandry94/go_ds/work_queue"
 	"math/rand"
 	"net"
 	"time"
-)
-
-var (
-	work queue.Queue
 )
 
 type Request struct {
@@ -29,7 +24,7 @@ type Conn struct {
 
 func (c *Conn) Handle() {
 
-	timeout := 10 * time.Second
+	timeout := 5 * time.Second
 	buffReader := bufio.NewReader(c.Connection)
 
 	c.Connection.SetReadDeadline(time.Now().Add(timeout))
@@ -41,9 +36,6 @@ func (c *Conn) Handle() {
 			fmt.Println(err)
 			return
 		}
-		node := &queue.Node{Value: bytes}
-		wq := workqueue.GetInstance()
-		wq.Push(node)
 		fmt.Printf("%s", bytes)
 	}
 
@@ -51,21 +43,35 @@ func (c *Conn) Handle() {
 	c.Connection.Close()
 }
 
+func printQueue(workQueue queue.Queue) {
+	fmt.Printf("==== Queue Size: %v ====\n", workQueue.Size)
+	p := workQueue.Front
+	for p != nil {
+		id := p.Value.(Conn).Id
+		fmt.Println(id)
+		p = p.Next
+	}
+	fmt.Println()
+}
+
 func main() {
-	workqueue.New()
+	work := queue.New()
 	fmt.Println("Setting up")
 	ln, err := net.Listen("tcp", ":80")
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	for {
 		fmt.Println("listening..")
 		newConnection, err := ln.Accept()
 		conn := Conn{Id: rand.Int(), Connection: newConnection}
-		fmt.Printf("Connection received! ID: %v", conn.Id)
+		fmt.Printf("Connection received! ID: %v\n", conn.Id)
 		if err != nil {
 			fmt.Println(err)
 		}
-		go conn.Handle()
+		node := queue.Node{Value: conn}
+		work.Push(node)
+		printQueue(work)
 	}
 }
