@@ -3,30 +3,37 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/clandry94/go_ds/queue"
+	workqueue "github.com/clandry94/go_ds/work_queue"
 	"math/rand"
 	"net"
-	//"time"
+	"time"
 )
 
-type Node struct {
-	conn net.Conn
+var (
+	work queue.Queue
+)
+
+type Request struct {
+	Cookie Cookie
 }
 
-type Queue struct {
-	nodes []*Node
-	head  int
-	tail  int
-	count int
+type Cookie struct {
+	Id int
 }
 
-func handleConnection(conn net.Conn, threadID int) {
+type Conn struct {
+	Connection net.Conn
+	Id         int
+}
 
-	//	timeout := 10 * time.Second
-	buffReader := bufio.NewReader(conn)
+func (c *Conn) Handle() {
 
+	timeout := 10 * time.Second
+	buffReader := bufio.NewReader(c.Connection)
+
+	c.Connection.SetReadDeadline(time.Now().Add(timeout))
 	for {
-		fmt.Printf("%d READING\n", threadID)
-		//conn.SetReadDeadline(time.Now().Add(timeout))
 
 		// Read tokens delimited by newline
 		bytes, err := buffReader.ReadBytes('\n')
@@ -34,30 +41,31 @@ func handleConnection(conn net.Conn, threadID int) {
 			fmt.Println(err)
 			return
 		}
-
+		node := &queue.Node{Value: bytes}
+		wq := workqueue.GetInstance()
+		wq.Push(node)
 		fmt.Printf("%s", bytes)
 	}
 
-	fmt.Printf("%d CLOSING\n", threadID)
-	conn.Close()
+	fmt.Printf("%d CLOSING\n", c.Id)
+	c.Connection.Close()
 }
 
 func main() {
-
+	workqueue.New()
 	fmt.Println("Setting up")
-	ln, err := net.Listen("tcp", ":8080")
+	ln, err := net.Listen("tcp", ":80")
 	if err != nil {
 		fmt.Println(err)
 	}
 	for {
 		fmt.Println("listening..")
-		conn, err := ln.Accept()
-		fmt.Println("Connection received!")
+		newConnection, err := ln.Accept()
+		conn := Conn{Id: rand.Int(), Connection: newConnection}
+		fmt.Printf("Connection received! ID: %v", conn.Id)
 		if err != nil {
 			fmt.Println(err)
 		}
-		threadID := rand.Int()
-		fmt.Printf("Creating thread ID: %d\n", threadID)
-		go handleConnection(conn, threadID)
+		go conn.Handle()
 	}
 }
